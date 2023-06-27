@@ -1,18 +1,13 @@
-import React from "react";
-import {
-  onChildAdded,
-  push,
-  ref as databaseRef,
-  set,
-  remove,
-  onChildRemoved,
-} from "firebase/database";
-import {
-  getDownloadURL,
-  uploadBytes,
-  deleteObject,
-  ref as storageRef,
-} from "firebase/storage";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ErrorPage from "./Pages/Error";
+import Welcome from "./Pages/Welcome";
+import Student from "./Pages/Student";
+import Form from "./Pages/Form";
+import Login from "./Pages/Login";
+import List from "./Pages/List";
+import Navbar from "./Components/Navbar";
+import "./App.css";
+import { Navigate } from "react-router-dom";
 
 import {
   onAuthStateChanged,
@@ -20,245 +15,81 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
+import { useState, useEffect } from "react";
+import { auth } from "./firebase";
 
-import { database, storage, auth } from "./firebase";
-import logo from "./logo.png";
-import "./App.css";
+export default function App() {
+  const [user, setUser] = useState({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-// Save the Firebase message folder name as a constant to avoid bugs due to misspelling
-
-const DB_STUDENTS_KEY = "students";
-const STORAGE_STUDENTS_KEY = "students/";
-
-class App extends React.Component {
-  constructor(props) {
-    super(props);
-    // Initialise empty messages array in state to keep local state in sync with Firebase
-    // When Firebase changes, update local state, which will update local UI
-    this.state = {
-      students: [],
-      name: "",
-      fileInputFile: null,
-      fileInputValue: "",
-      isLoggedIn: false,
-      user: {},
-      email: "",
-      password: "",
-    };
-  }
-
-  handleInput = (e) => {
-    const name = e.target.name;
-    const value = e.target.value;
-
-    this.setState({
-      [name]: value,
-    });
-  };
-
-  handleSignup = () => {
-    createUserWithEmailAndPassword(auth, this.state.email, this.state.password)
+  const handleSignup = (email, password) => {
+    createUserWithEmailAndPassword(auth, email, password)
       .then((userCred) => {})
       .catch((err) => {
         alert(err);
       });
   };
 
-  handleLogin = () => {
-    signInWithEmailAndPassword(auth, this.state.email, this.state.password)
+  const handleLogin = (email, password) => {
+    signInWithEmailAndPassword(auth, email, password)
       .then((userCred) => {})
       .catch((err) => {
         alert(err);
       });
   };
 
-  handleSignOut = () => {
+  const handleSignOut = () => {
     signOut(auth).then(() => {
       console.log("Signout success woooo");
     });
   };
 
-  componentDidMount() {
-    const studentsRef = databaseRef(database, DB_STUDENTS_KEY);
-    // onChildAdded will return data for every child at the reference and every subsequent new child
-    onChildAdded(studentsRef, (data) => {
-      console.log(data);
-      // Add the subsequent child to local component state, initialising a new array to trigger re-render
-      this.setState((state) => ({
-        // Store message key so we can use it as a key in our list items when rendering messages
-        students: [...state.students, { key: data.key, val: data.val() }],
-      }));
-    });
-
-    // handle state when a child is removed
-    onChildRemoved(studentsRef, (data) => {
-      let StudentArray = [...this.state.students];
-      let NewStudentArray = StudentArray.filter(
-        (item) => item.key !== data.key
-      );
-      this.setState({
-        students: NewStudentArray,
-      });
-    });
-
+  useEffect(() => {
     onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log(user);
-        this.setState({ isLoggedIn: true, user: user });
+        setIsLoggedIn(true);
+        setUser(user);
       } else {
-        this.setState({ isLoggedIn: false, user: {} });
+        setIsLoggedIn(false);
+        setUser({});
       }
     });
+  }, []);
+
+  function RequireAuth({ children, redirectTo, user }) {
+    console.log(user);
+    const isAuthenticated = isLoggedIn;
+    return isAuthenticated ? children : <Navigate to={redirectTo} />;
   }
 
-  // Note use of array fields syntax to avoid having to manually bind this method to the class
-  writeData = () => {
-    const studentListRef = databaseRef(database, DB_STUDENTS_KEY);
-    const newStudentRef = push(studentListRef);
-
-    console.log(this.state.fileInputFile);
-
-    const storageRefInstance = storageRef(
-      storage,
-      STORAGE_STUDENTS_KEY + this.state.fileInputFile.name
-    );
-    // 1
-    uploadBytes(storageRefInstance, this.state.fileInputFile).then(
-      (snapshot) => {
-        console.log(snapshot);
-        console.log("uploaded image");
-        //2
-        getDownloadURL(storageRefInstance).then((url) => {
-          console.log(url);
-          console.log(storageRefInstance._location.path_);
-          console.log("submission:", this.state.user);
-          // 3
-          set(newStudentRef, {
-            name: this.state.name,
-            date: new Date().toLocaleString(),
-            url: url,
-            ref: String(storageRefInstance),
-            user: this.state.user.email,
-          });
-
-          this.setState({
-            name: "",
-            fileInputFile: null,
-            fileInputValue: "",
-          });
-        });
-      }
-    );
-  };
-
-  render() {
-    // Convert messages in state to message JSX elements to render
-
-    let studentListItems = this.state.students.map((student) => (
-      <div key={student.key}>
-        <h3>
-          {student.val.date}- {student.val.name}
-        </h3>
-        <div>
-          <h4>{student.val.user}</h4>
-          <img
-            style={{ height: "50vh" }}
-            src={student.val.url}
-            alt={student.val.name}
+  return (
+    <div className="App-header">
+      <BrowserRouter>
+        <Navbar handleSignOut={handleSignOut} isLoggedIn={isLoggedIn} />
+        <Routes>
+          <Route path="/" element={<Welcome />} />
+          <Route
+            path="/login"
+            element={
+              <Login handleLogin={handleLogin} handleSignup={handleSignup} />
+            }
           />
-          <br />
-          <button
-            onClick={(e) => {
-              // delete the image stored in storage
-              const ImageToDeleteRef = storageRef(storage, student.val.ref);
 
-              deleteObject(ImageToDeleteRef).then(() =>
-                console.log("deleted?")
-              );
-
-              // delete the entry wihtin the real time database.
-              const itemToDelete = databaseRef(
-                database,
-                "students/" + student.key
-              );
-
-              remove(itemToDelete).then(() => console.log("success"));
-            }}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    ));
-    return (
-      <div className="App">
-        <header className="App-header">
-          {!this.state.isLoggedIn ? (
-            <div>
-              <label>Email</label>
-              <input
-                value={this.state.email}
-                name="email"
-                type="text"
-                placeholder="email here please"
-                onChange={this.handleInput}
-              />
-              <label>Password</label>
-              <input
-                value={this.state.password}
-                name="password"
-                type="text"
-                placeholder="password here please"
-                onChange={this.handleInput}
-              />
-              <button onClick={this.handleLogin}>Login</button>
-              <button onClick={this.handleSignup}>Signup</button>
-            </div>
-          ) : (
-            <div>
-              <button onClick={this.handleSignOut}>Log me out!</button>
-            </div>
-          )}
-
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-
-          {this.state.isLoggedIn ? (
-            <div>
-              <h2>Welcome back {this.state.user.email}</h2>
-              <input
-                type="text"
-                value={this.state.name}
-                onChange={(e) => {
-                  this.setState({
-                    name: e.target.value,
-                  });
-                }}
-                placeholder="Add a name here"
-              />
-
-              <input
-                type="file"
-                value={this.state.fileInputValue}
-                onChange={(e) => {
-                  console.log(e.target.value);
-                  this.setState({
-                    fileInputFile: e.target.files[0],
-                    fileInputValue: e.target.value,
-                  });
-                }}
-                placeholder="add file here"
-              />
-              <button onClick={this.writeData}>Send</button>
-            </div>
-          ) : null}
-          {studentListItems}
-        </header>
-      </div>
-    );
-  }
+          <Route path="/student" element={<Student user={user} />}>
+            <Route
+              path="form"
+              element={
+                <RequireAuth redirectTo="/login" user={user}>
+                  <Form />
+                </RequireAuth>
+              }
+            />
+            <Route path="list" element={<List />} />
+          </Route>
+          <Route path="*" element={<ErrorPage />} />
+        </Routes>
+      </BrowserRouter>
+    </div>
+  );
 }
-
-export default App;
