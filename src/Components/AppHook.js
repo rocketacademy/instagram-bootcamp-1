@@ -21,7 +21,7 @@ import {
   signOut,
 } from "firebase/auth";
 
-import { database, storage, auth } from "./firebase";
+import { database, storage, auth } from "../firebase";
 import logo from "./logo.png";
 import "./App.css";
 

@@ -11,7 +11,7 @@ import { useState } from "react";
 const DB_STUDENTS_KEY = "students";
 const STORAGE_STUDENTS_KEY = "students/";
 
-export default function Form() {
+export default function Form(props) {
   const [name, setName] = useState("");
   const [fileInputFile, setFileInputFile] = useState(null);
   const [fileInputValue, setFileInputValue] = useState("");
@@ -34,14 +34,14 @@ export default function Form() {
       getDownloadURL(storageRefInstance).then((url) => {
         console.log(url);
         console.log(storageRefInstance._location.path_);
-        // console.log("submission:", user);
+        console.log("submission:", props.user);
         // 3
         set(newStudentRef, {
           name: name,
           date: new Date().toLocaleString(),
           url: url,
           ref: String(storageRefInstance),
-          // user: user.email,
+          user: props.user.email,
         });
 
         setName("");
