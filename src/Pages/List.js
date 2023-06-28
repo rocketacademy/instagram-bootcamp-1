@@ -6,12 +6,13 @@ import {
 } from "firebase/database";
 import { database, storage } from "../firebase";
 import { deleteObject, ref as storageRef } from "firebase/storage";
+import { Link, Outlet } from "react-router-dom";
 
 import { useState, useEffect } from "react";
 
 const DB_STUDENTS_KEY = "students";
 
-export default function List() {
+export default function List(props) {
   const [students, setStudents] = useState([]);
 
   useEffect(() => {
@@ -65,6 +66,10 @@ export default function List() {
         >
           Delete
         </button>
+        <button onClick={() => props.selectCurrent(student)}>
+          {/* <Link to={`/student/list/${student.key}`}>{student.val.name}</Link> */}
+          <Link to={`/student/list/${student.key}`}>{student.val.name}</Link>
+        </button>
       </div>
     </div>
   ));
@@ -73,6 +78,7 @@ export default function List() {
     <div>
       <p>List</p>
       {studentListItems}
+      {/* <Outlet /> */}
     </div>
   );
 }

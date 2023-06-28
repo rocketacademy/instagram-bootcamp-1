@@ -8,6 +8,8 @@ import List from "./Pages/List";
 import Navbar from "./Components/Navbar";
 import "./App.css";
 import { Navigate } from "react-router-dom";
+import Single from "./Components/Single";
+import { useNavigate } from "react-router-dom";
 
 import {
   onAuthStateChanged,
@@ -18,9 +20,15 @@ import {
 import { useState, useEffect } from "react";
 import { auth } from "./firebase";
 
+import { createContext } from "react";
+
+export const UserContext = createContext({});
+
 export default function App() {
+  const navigate = useNavigate();
   const [user, setUser] = useState({});
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentStudent, setCurrentStudent] = useState({});
 
   const handleSignup = (email, password) => {
     createUserWithEmailAndPassword(auth, email, password)
@@ -32,7 +40,9 @@ export default function App() {
 
   const handleLogin = (email, password) => {
     signInWithEmailAndPassword(auth, email, password)
-      .then((userCred) => {})
+      .then((userCred) => {
+        navigate("/student/list");
+      })
       .catch((err) => {
         alert(err);
       });
@@ -63,10 +73,11 @@ export default function App() {
     return isAuthenticated ? children : <Navigate to={redirectTo} />;
   }
 
+  const context = { user, handleSignOut };
   return (
     <div className="App-header">
-      <BrowserRouter>
-        <Navbar handleSignOut={handleSignOut} isLoggedIn={isLoggedIn} />
+      <UserContext.Provider value={context}>
+        <Navbar isLoggedIn={isLoggedIn} />
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route
@@ -76,20 +87,36 @@ export default function App() {
             }
           />
 
-          <Route path="/student" element={<Student user={user} />}>
+          <Route path="/student/" element={<Student user={user} />}>
             <Route
               path="form"
               element={
                 <RequireAuth redirectTo="/login" user={user}>
-                  <Form />
+                  <Form user={user} />
                 </RequireAuth>
               }
             />
-            <Route path="list" element={<List />} />
+            <Route
+              path="list"
+              element={<List selectCurrent={setCurrentStudent} />}
+            />
+            {/* Nested component */}
+            {/* <Route
+              path=":studentID"
+              element={<Single student={currentStudent} />}
+            />
+          </Route>
+        </Route> */}
+
+            {/* Single component path nest url */}
+            <Route
+              path="list/:studentID"
+              element={<Single student={currentStudent} />}
+            />
           </Route>
           <Route path="*" element={<ErrorPage />} />
         </Routes>
-      </BrowserRouter>
+      </UserContext.Provider>
     </div>
   );
 }
